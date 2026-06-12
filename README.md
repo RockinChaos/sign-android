@@ -131,7 +131,8 @@ organization.
 
 ## BUGs & Issues
 
-Feel free to [open issues](https://github.com/RockinChaos/sign-android/issues/new).
+Feel free to
+[open issues](https://github.com/RockinChaos/sign-android/issues/new).
 
 ## Contributions
 
@@ -139,7 +140,9 @@ PRs are welcome! Feel free to contribute.
 
 ## Credits
 
-Based on [sign-android](https://github.com/NoCrypt/sign-android) by [NoCrypt](https://github.com/NoCrypt), used under the [MIT License](https://github.com/NoCrypt/sign-android/blob/main/LICENSE).
+Based on [sign-android](https://github.com/NoCrypt/sign-android) by
+[NoCrypt](https://github.com/NoCrypt), used under the
+[MIT License](https://github.com/NoCrypt/sign-android/blob/main/LICENSE).
 
 ## LICENSE
 

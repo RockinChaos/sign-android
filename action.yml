@@ -1,6 +1,6 @@
 name: 'Sign Android Releases Apk'
 description: 'An action to sign an Android release APK or AAB'
-author: 'NoCrypt'
+author: 'RockinChaos'
 branding:
   icon: 'edit'
   color: 'blue'
@@ -24,14 +24,14 @@ inputs:
     description: 'The password for the key'
     required: false
   buildToolsVersion:
-    description: 'Prefered Android build tools to use'
+    description: 'Preferred Android build tools to use'
     required: false
   appName:
-    description: 'Prefered App Name for renaming'
+    description: 'Preferred App Name for renaming'
     required: false
   appVersion:
-    description: 'Prefered App Version for renaming'
+    description: 'Preferred App Version for renaming'
     required: false
   appPrefix:
-    description: 'Prefered App Prefix for renaming'
+    description: 'Preferred App Prefix for renaming'
     required: false

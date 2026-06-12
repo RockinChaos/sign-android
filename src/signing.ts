@@ -113,7 +113,7 @@ async function getBuildToolsPath(): Promise<string> {
       const versions = buildToolsVersion.trim().split('\n')
       buildToolsVersion = versions[versions.length - 1]
       console.log('Found! Build tools version', buildToolsVersion)
-    } catch (error) {
+    } catch {
       throw new Error('Failed to detect Android build tools version.')
     }
   }
