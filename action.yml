@@ -4,6 +4,9 @@ author: 'NoCrypt'
 branding:
   icon: 'edit'
   color: 'blue'
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
 inputs:
   releaseDir:
     description: 'The directory to find your release to sign'
@@ -32,6 +35,3 @@ inputs:
   appPrefix:
     description: 'Prefered App Prefix for renaming'
     required: false
-runs:
-  using: 'node20'
-  main: 'dist/index.js'
