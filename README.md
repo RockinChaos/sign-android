@@ -2,8 +2,8 @@
 <h1>Sign Android Release</h1>
 <p>A GitHub action to sign an APK or AAB.</p>
 
-[![Test](https://github.com/NoCrypt/sign-android/actions/workflows/test.yml/badge.svg)](https://github.com/NoCrypt/sign-android/actions/workflows/test.yml)
-[![License](https://img.shields.io/github/license/NoCrypt/sign-android?style=flat-square)](https://github.com/NoCrypt/sign-android/blob/main/LICENSE)
+[![Test](https://github.com/RockinChaos/sign-android/actions/workflows/test.yml/badge.svg)](https://github.com/RockinChaos/sign-android/actions/workflows/test.yml)
+[![License](https://img.shields.io/github/license/RockinChaos/sign-android?style=flat-square)](https://github.com/RockinChaos/sign-android/blob/main/LICENSE)
 
 </div>
 
@@ -16,7 +16,7 @@ file for release.
 
 ```yml
 steps:
-  - uses: NoCrypt/sign-android@main
+  - uses: RockinChaos/sign-android@main
     name: Sign app APK
     id: sign_app
     with:
@@ -37,7 +37,7 @@ If you have multiple files to sign:
 
 ```yaml
 steps:
-  - uses: NoCrypt/sign-android@main
+  - uses: RockinChaos/sign-android@main
     id: sign_app
     with:
       releaseDir: app/build/outputs/apk/release
@@ -71,7 +71,7 @@ Or you can also do this using `signedFileX`:
 
 ```yaml
 steps:
-  - uses: NoCrypt/sign-android@main
+  - uses: RockinChaos/sign-android@main
     id: sign_app
     with:
       releaseDir: app/build/outputs/apk/release
@@ -131,12 +131,16 @@ organization.
 
 ## BUGs & Issues
 
-Feel free to [open issues](https://github.com/NoCrypt/sign-android/issues/new).
+Feel free to [open issues](https://github.com/RockinChaos/sign-android/issues/new).
 
 ## Contributions
 
 PRs are welcome! Feel free to contribute.
 
+## Credits
+
+Based on [sign-android](https://github.com/NoCrypt/sign-android) by [NoCrypt](https://github.com/NoCrypt), used under the [MIT License](https://github.com/NoCrypt/sign-android/blob/main/LICENSE).
+
 ## LICENSE
 
-[MIT](https://github.com/NoCrypt/sign-android/blob/main/LICENSE)
+[MIT](https://github.com/RockinChaos/sign-android/blob/main/LICENSE)
