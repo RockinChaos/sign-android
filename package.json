@@ -2,15 +2,21 @@
   "name": "sign-android",
   "description": "sign-android",
   "version": "1.0.0",
-  "author": "NoCrypt",
+  "author": "RockinChaos",
+  "contributors": [
+    {
+      "name": "NoCrypt",
+      "url": "https://github.com/NoCrypt/sign-android"
+    }
+  ],
   "private": true,
-  "homepage": "https://github.com/NoCrypt/sign-android",
+  "homepage": "https://github.com/RockinChaos/sign-android",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NoCrypt/sign-android.git"
+    "url": "git+https://github.com/RockinChaos/sign-android.git"
   },
   "bugs": {
-    "url": "https://github.com/NoCrypt/sign-android/issues"
+    "url": "https://github.com/RockinChaos/sign-android/issues"
   },
   "keywords": [
     "actions",
