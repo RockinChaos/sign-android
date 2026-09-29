@@ -7,12 +7,18 @@ on:
       - main
     paths-ignore:
       - '**.md'
-      - '**.yml'
   pull_request:
     branches:
       - main
     paths-ignore:
       - '**.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -23,22 +29,48 @@ jobs:
       - uses: actions/checkout@v6
         name: Checkout code
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm run test
-
-      - uses: pCYSl5EDgo/cat@1.0.1
-        name: Cat for GitHub Actions
-        id: get_key
+      - uses: actions/setup-node@v6
+        name: Set up Node.js
         with:
-          path: __tests__/test_key_b64.txt
+          node-version: '24.15.0'
+
+      - uses: pnpm/action-setup@v6
+        name: Set up pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: pnpm run audit
+
+      - name: Run checks
+        run: pnpm run check
+
+      - name: Bundle action
+        run: pnpm run package
+
+      - name: Verify bundled action is committed
+        run: git diff --exit-code -- dist
+
+      - name: Read test signing key
+        id: get_key
+        shell: bash
+        run: |
+          echo "text=$(tr -d '\\r\\n' < __tests__/test_key_b64.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare isolated test releases
+        shell: bash
+        run: |
+          mkdir -p __tests__/runner/apk __tests__/runner/aab __tests__/runner/custom
+          cp __tests__/apk/app-release-unsigned.apk __tests__/runner/apk/
+          cp __tests__/aab/app-unsigned.aab __tests__/runner/aab/
+          cp __tests__/apk/app-release-unsigned.apk __tests__/runner/custom/
 
       - uses: ./
         name: Sign APK
+        id: sign_apk
         with:
-          releaseDir: __tests__/apk
+          releaseDir: __tests__/runner/apk
           signingKey: ${{ steps.get_key.outputs.text }}
           keyAlias: test_key
           keyStorePassword: android
@@ -46,8 +78,9 @@ jobs:
 
       - uses: ./
         name: Sign AAB
+        id: sign_aab
         with:
-          releaseDir: __tests__/aab
+          releaseDir: __tests__/runner/aab
           signingKey: ${{ steps.get_key.outputs.text }}
           keyAlias: test_key
           keyStorePassword: android
@@ -55,8 +88,9 @@ jobs:
 
       - uses: ./
         name: Sign APK with custom name
+        id: sign_custom
         with:
-          releaseDir: __tests__/apk
+          releaseDir: __tests__/runner/custom
           signingKey: ${{ steps.get_key.outputs.text }}
           keyAlias: test_key
           keyStorePassword: android
@@ -64,3 +98,28 @@ jobs:
           appName: name
           appVersion: 1.2.3
           appPrefix: pre
+
+      - name: Verify signed outputs
+        shell: bash
+        env:
+          APK: ${{ steps.sign_apk.outputs.signedFile }}
+          APK_COUNT: ${{ steps.sign_apk.outputs.signedFilesCount }}
+          AAB: ${{ steps.sign_aab.outputs.signedFile }}
+          AAB_COUNT: ${{ steps.sign_aab.outputs.signedFilesCount }}
+          CUSTOM: ${{ steps.sign_custom.outputs.signedFile }}
+          CUSTOM_INDEXED: ${{ steps.sign_custom.outputs.signedFile0 }}
+          CUSTOM_COUNT: ${{ steps.sign_custom.outputs.signedFilesCount }}
+          CUSTOM_LIST: ${{ steps.sign_custom.outputs.signedFilesList }}
+          CUSTOM_JSON: ${{ steps.sign_custom.outputs.signedFilesJson }}
+        run: |
+          test "$APK_COUNT" = 1
+          test "$AAB_COUNT" = 1
+          test "$CUSTOM_COUNT" = 1
+          test -f "$APK"
+          test -f "$AAB"
+          test -f "$CUSTOM"
+          test "$(basename "$CUSTOM")" = pre-name-1.2.3.apk
+          test "$CUSTOM_INDEXED" = "$CUSTOM"
+          test "$ANDROID_SIGNED_FILES_LIST" = "$CUSTOM_LIST"
+          test "$ANDROID_SIGNED_FILES_JSON" = "$CUSTOM_JSON"
+          node -e "const assert = require('node:assert/strict'); const path = require('node:path'); const signed = path.resolve(process.env.CUSTOM); assert.equal(process.env.CUSTOM_LIST, signed); assert.deepEqual(JSON.parse(process.env.CUSTOM_JSON), [signed])"

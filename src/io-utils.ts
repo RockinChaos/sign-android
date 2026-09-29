@@ -1,7 +1,7 @@
 import type { Dirent } from 'fs'
 import fs from 'fs'
 
-export function findReleaseFiles(releaseDir: string): Dirent[] | undefined {
+export function findReleaseFiles(releaseDir: string): Dirent[] {
   const releaseFiles = fs
     .readdirSync(releaseDir, { withFileTypes: true })
     .filter(item => !item.isDirectory())
@@ -9,7 +9,5 @@ export function findReleaseFiles(releaseDir: string): Dirent[] | undefined {
 
   console.log(`Found ${releaseFiles.length} release files.`)
 
-  if (releaseFiles.length > 0) {
-    return releaseFiles
-  }
+  return releaseFiles
 }

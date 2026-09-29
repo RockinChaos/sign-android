@@ -1,0 +1,96 @@
+name: 'Draft release'
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_version:
+        description:
+          'I checked the version in package.json and intend to create this draft
+          release'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  draft-release:
+    name: Create draft release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Require version confirmation
+        if: ${{ !inputs.confirm_version }}
+        run: |
+          echo '::error::Confirm that package.json contains the intended release version.'
+          exit 1
+
+      - uses: actions/checkout@v6
+        name: Checkout code
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        name: Set up Node.js
+        with:
+          node-version: '24.15.0'
+
+      - name: Read package version
+        id: package
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::package.json contains an invalid semantic version: $version"
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Preparing draft release v$version"
+
+      - name: Ensure release does not already exist
+        env:
+          RELEASE_TAG: ${{ steps.package.outputs.tag }}
+        shell: bash
+        run: |
+          if git rev-parse --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            echo "::error::Tag $RELEASE_TAG already exists. Update package.json before creating another release."
+            exit 1
+          fi
+
+      - name: Generate changelog
+        id: git-cliff
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4.8.0
+        with:
+          version: v2.14.0
+          config: cliff.toml
+          args:
+            --unreleased --tag ${{ steps.package.outputs.tag }} --strip header
+          github_token: ''
+        env:
+          OUTPUT: RELEASE_NOTES.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Preview release notes
+        shell: bash
+        run: cat RELEASE_NOTES.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.package.outputs.tag }}
+        shell: bash
+        run: |
+          gh release create "$RELEASE_TAG" \
+            --draft \
+            --fail-on-no-commits \
+            --notes-file RELEASE_NOTES.md \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TAG"

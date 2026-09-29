@@ -92,26 +92,25 @@ async function getBuildToolsPath(): Promise<string> {
   }
 
   const buildToolsDir = path.join(androidHome, 'build-tools')
-  let buildToolsVersion = ''
+  let buildToolsVersion =
+    core.getInput('buildToolsVersion') ||
+    process.env.ANDROID_BUILD_TOOLS_VERSION ||
+    ''
 
-  if (
-    !(
-      core.getInput('buildToolsVersion') ||
-      process.env.ANDROID_BUILD_TOOLS_VERSION
-    )
-  ) {
+  if (!buildToolsVersion) {
     console.log('Build tools version is not specified. AUTO-DETECTING...')
     try {
-      const options = {
-        listeners: {
-          stdout: (data: Buffer) => {
-            buildToolsVersion += data.toString()
-          }
-        }
+      const versions = fs
+        .readdirSync(buildToolsDir, { withFileTypes: true })
+        .filter(entry => entry.isDirectory())
+        .map(entry => entry.name)
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      buildToolsVersion = versions.at(-1) || ''
+
+      if (!buildToolsVersion) {
+        throw new Error('No Android build tools versions were found.')
       }
-      await exec.exec('ls', [buildToolsDir], options)
-      const versions = buildToolsVersion.trim().split('\n')
-      buildToolsVersion = versions[versions.length - 1]
+
       console.log('Found! Build tools version', buildToolsVersion)
     } catch {
       throw new Error('Failed to detect Android build tools version.')
@@ -133,9 +132,7 @@ async function alignApkFile(
 ): Promise<string> {
   const alignedApkFile = apkFile.replace('.apk', '-aligned.apk')
 
-  await exec.exec(`"${zipAlign}"`, ['-c', '-v', '4', apkFile])
-
-  await exec.exec(`"cp"`, [apkFile, alignedApkFile])
+  await exec.exec(`"${zipAlign}"`, ['-f', '-v', '4', apkFile, alignedApkFile])
 
   return alignedApkFile
 }

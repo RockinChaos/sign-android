@@ -4,6 +4,17 @@ author: 'RockinChaos'
 branding:
   icon: 'edit'
   color: 'blue'
+outputs:
+  signedFile:
+    description: 'The signed release file path when exactly one file is signed'
+  signedFiles:
+    description: 'Signed release file paths, separated by colons (legacy)'
+  signedFilesList:
+    description: 'Absolute signed release file paths, separated by newlines'
+  signedFilesJson:
+    description: 'Absolute signed release file paths as a JSON array'
+  signedFilesCount:
+    description: 'The number of signed release files'
 runs:
   using: 'node24'
   main: 'dist/index.js'

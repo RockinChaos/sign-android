@@ -1,9 +1,11 @@
 import * as core from '@actions/core'
 import { signAabFile, signApkFile } from './signing'
 import path from 'path'
-import fs from 'fs'
+import fs, { type Dirent } from 'fs'
+import os from 'os'
 import * as ioUtils from './io-utils'
 import * as io from '@actions/io'
+import { createSignedFilename } from './naming'
 
 async function run(): Promise<void> {
   try {
@@ -37,14 +39,14 @@ async function run(): Promise<void> {
       ? core.getInput('appPrefix')
       : process.env.ANDROID_APP_PREFIX
 
-    if (
-      !releaseDir ||
-      !signingKeyBase64 ||
-      !alias ||
-      !keyStorePassword ||
-      !keyPassword
-    ) {
+    if (!releaseDir || !signingKeyBase64 || !alias || !keyStorePassword) {
       throw new Error('Missing required input(s).')
+    }
+
+    core.setSecret(signingKeyBase64)
+    core.setSecret(keyStorePassword)
+    if (keyPassword) {
+      core.setSecret(keyPassword)
     }
 
     console.log(
@@ -53,32 +55,40 @@ async function run(): Promise<void> {
 
     const releaseFiles = ioUtils.findReleaseFiles(releaseDir)
 
-    if (releaseFiles && releaseFiles.length > 0) {
-      const signingKey = path.join(releaseDir, 'signingKey.jks')
-      saveSigningKey(signingKey, signingKeyBase64)
-
-      let signedReleaseFiles = await signReleaseFiles(
-        releaseFiles,
-        releaseDir,
-        signingKey,
-        alias,
-        keyStorePassword,
-        keyPassword
+    if (releaseFiles.length > 0) {
+      const signingKeyDirectory = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'sign-android-')
       )
+      const signingKey = path.join(signingKeyDirectory, 'signingKey.jks')
 
-      if (appName || appVersion || appPrefix) {
-        console.log('Renaming signed release files...')
-        signedReleaseFiles = await renameSignedReleaseFiles(
-          signedReleaseFiles,
-          appName,
-          appVersion,
-          appPrefix
+      try {
+        saveSigningKey(signingKey, signingKeyBase64)
+
+        let signedReleaseFiles = await signReleaseFiles(
+          releaseFiles,
+          releaseDir,
+          signingKey,
+          alias,
+          keyStorePassword,
+          keyPassword
         )
+
+        if (appName || appVersion || appPrefix) {
+          console.log('Renaming signed release files...')
+          signedReleaseFiles = await renameSignedReleaseFiles(
+            signedReleaseFiles,
+            appName,
+            appVersion,
+            appPrefix
+          )
+        }
+
+        setOutputVariables(signedReleaseFiles)
+
+        console.log('Releases signed!')
+      } finally {
+        fs.rmSync(signingKeyDirectory, { force: true, recursive: true })
       }
-
-      setOutputVariables(signedReleaseFiles)
-
-      console.log('Releases signed!')
     } else {
       throw new Error('No release files (.apk or .aab) could be found.')
     }
@@ -92,35 +102,25 @@ async function renameSignedReleaseFiles(
   version?: string,
   prefix?: string
 ): Promise<string[]> {
-  const architectures = [
-    'arm64-v8a',
-    'armeabi-v7a',
-    'x86',
-    'x86_64',
-    'universal'
-  ]
   const renamedFiles: string[] = []
 
   for (const file of signedReleaseFiles) {
     const ext = path.extname(file)
-    const archMatch = architectures.find(arch => file.includes(arch))
-    const architecture = archMatch ? archMatch : ''
-
-    let newFilename: string
-    if (signedReleaseFiles.length === 1 && !architecture) {
-      newFilename = `${prefix ? `${prefix}-` : ''}${name}${version ? `-${version}` : ''}${ext}`
-    } else {
-      newFilename = `${prefix ? `${prefix}-` : ''}${name}${version ? `-${version}` : ''}${architecture ? `-${architecture}` : ''}${ext}`
-    }
-
     const dir = path.dirname(file)
+    const newFilename = createSignedFilename(
+      file,
+      signedReleaseFiles.length > 1,
+      name,
+      version,
+      prefix
+    )
+    const newFileStem = path.parse(newFilename).name
     let newFilePath = path.join(dir, newFilename)
 
-    // check if file with newFilePath name already exist
     let duplicateIndex = 1
     while (fs.existsSync(newFilePath)) {
       console.error('File already exists:', newFilePath)
-      newFilePath = `${path.join(dir, path.parse(newFilePath).name)}-${duplicateIndex++}${ext}`
+      newFilePath = path.join(dir, `${newFileStem}-${duplicateIndex++}${ext}`)
     }
 
     await io.mv(file, newFilePath)
@@ -137,26 +137,27 @@ function saveSigningKey(
 ): void {
   try {
     fs.writeFileSync(signingKeyPath, signingKeyBase64, 'base64')
-  } catch (error: any) {
-    throw new Error(`Failed to save signing key: ${error.message}`)
+  } catch (error: unknown) {
+    throw new Error(`Failed to save signing key: ${getErrorMessage(error)}`, {
+      cause: error
+    })
   }
 }
 
 async function signReleaseFiles(
-  releaseFiles: any,
+  releaseFiles: Dirent[],
   releaseDir: string,
   signingKey: string,
   alias: string,
   keyStorePassword: string,
-  keyPassword: string
+  keyPassword: string | undefined
 ): Promise<string[]> {
   const signedReleaseFiles: string[] = []
-  let index = 0
 
   for (const releaseFile of releaseFiles) {
     core.debug(`Found release to sign: ${releaseFile.name}`)
     const releaseFilePath = path.join(releaseDir, releaseFile.name)
-    let signedReleaseFile = ''
+    let signedReleaseFile: string
 
     console.log('Working on', releaseFile.name, '...')
 
@@ -180,29 +181,42 @@ async function signReleaseFiles(
       } else {
         throw new Error(`Unsupported file format: ${releaseFile.name}`)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw new Error(
-        `Failed to sign file ${releaseFile.name}: ${error.message}`
+        `Failed to sign file ${releaseFile.name}: ${getErrorMessage(error)}`,
+        { cause: error }
       )
     }
 
-    core.exportVariable(`ANDROID_SIGNED_FILE_${index}`, signedReleaseFile)
-    core.setOutput(`signedFile${index}`, signedReleaseFile)
     signedReleaseFiles.push(signedReleaseFile)
-    index++
   }
 
   return signedReleaseFiles
 }
 
 function setOutputVariables(signedReleaseFiles: string[]): void {
+  const absoluteSignedReleaseFiles = signedReleaseFiles.map(file =>
+    path.resolve(file)
+  )
+  const signedFilesList = absoluteSignedReleaseFiles.join('\n')
+  const signedFilesJson = JSON.stringify(absoluteSignedReleaseFiles)
+
   core.exportVariable('ANDROID_SIGNED_FILES', signedReleaseFiles.join(':'))
   core.setOutput('signedFiles', signedReleaseFiles.join(':'))
+  core.exportVariable('ANDROID_SIGNED_FILES_LIST', signedFilesList)
+  core.setOutput('signedFilesList', signedFilesList)
+  core.exportVariable('ANDROID_SIGNED_FILES_JSON', signedFilesJson)
+  core.setOutput('signedFilesJson', signedFilesJson)
   core.exportVariable(
     'ANDROID_SIGNED_FILES_COUNT',
     `${signedReleaseFiles.length}`
   )
   core.setOutput('signedFilesCount', `${signedReleaseFiles.length}`)
+
+  signedReleaseFiles.forEach((signedReleaseFile, index) => {
+    core.exportVariable(`ANDROID_SIGNED_FILE_${index}`, signedReleaseFile)
+    core.setOutput(`signedFile${index}`, signedReleaseFile)
+  })
 
   if (signedReleaseFiles.length === 1) {
     core.exportVariable('ANDROID_SIGNED_FILE', signedReleaseFiles[0])
@@ -217,6 +231,10 @@ function handleError(error: unknown): void {
     core.setFailed('An unknown error occurred.')
     console.error(error)
   }
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 run()

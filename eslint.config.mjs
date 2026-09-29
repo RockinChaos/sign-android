@@ -1,13 +1,6 @@
-import eslintComments from '@eslint-community/eslint-plugin-eslint-comments'
-import filenames from 'eslint-plugin-filenames'
 import js from '@eslint/js'
 import ts from '@typescript-eslint/eslint-plugin'
 import tsParser from '@typescript-eslint/parser'
-import github from 'eslint-plugin-github'
-import jest from 'eslint-plugin-jest'
-import prettier from 'eslint-plugin-prettier'
-import importPlugin from 'eslint-plugin-import'
-import * as noOnlyTests from 'eslint-plugin-no-only-tests'
 
 export default [
   {
@@ -15,11 +8,9 @@ export default [
       'lib/**',
       'dist/**',
       'node_modules/**',
-      'coverage/**',
       '!.*',
       '**/node_modules/.*',
       '**/dist/.*',
-      '**/coverage/.*',
       '*.json'
     ]
   },
@@ -31,7 +22,10 @@ export default [
       parserOptions: {
         ecmaVersion: 2023,
         sourceType: 'module',
-        project: ['./.github/linters/tsconfig.json', './tsconfig.json']
+        projectService: {
+          allowDefaultProject: ['__tests__/*.ts']
+        },
+        tsconfigRootDir: import.meta.dirname
       },
       globals: {
         Atomics: 'readonly',
@@ -53,32 +47,15 @@ export default [
       }
     },
     plugins: {
-      '@typescript-eslint': ts,
-      'eslint-comments': eslintComments,
-      'no-only-tests': noOnlyTests,
-      filenames: filenames,
-      import: importPlugin,
-      github,
-      jest,
-      prettier
+      '@typescript-eslint': ts
     },
     rules: {
       ...js.configs.recommended.rules,
       ...ts.configs['eslint-recommended'].overrides?.[0]?.rules,
       ...ts.configs['recommended'].rules,
-      ...github.configs.recommended.rules,
-      ...jest.configs.recommended.rules,
-      'no-only-tests/no-only-tests': 'off',
-      'filenames/match-regex': 'off',
-      'import/no-unresolved': 'off',
       camelcase: 'off',
-      'eslint-comments/no-use': 'off',
-      'eslint-comments/no-unused-disable': 'off',
-      'i18n-text/no-en': 'off',
-      'import/no-namespace': 'off',
       'no-console': 'off',
       'no-unused-vars': 'off',
-      'prettier/prettier': 'error',
       semi: 'off',
       '@typescript-eslint/array-type': 'error',
       '@typescript-eslint/await-thenable': 'error',
