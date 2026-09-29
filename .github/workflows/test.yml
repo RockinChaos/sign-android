@@ -26,10 +26,10 @@ jobs:
     name: Test action
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         name: Checkout code
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         name: Set up Node.js
         with:
           node-version: '24.15.0'
@@ -56,7 +56,9 @@ jobs:
         id: get_key
         shell: bash
         run: |
-          echo "text=$(tr -d '\\r\\n' < __tests__/test_key_b64.txt)" >> "$GITHUB_OUTPUT"
+          key="$(tr -d '[:space:]' < __tests__/test_key_b64.txt)"
+          printf '%s' "$key" | base64 --decode > /dev/null
+          printf 'text=%s\n' "$key" >> "$GITHUB_OUTPUT"
 
       - name: Prepare isolated test releases
         shell: bash
